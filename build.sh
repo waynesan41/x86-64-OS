@@ -2,6 +2,7 @@
 
 
 nasm -f bin -o boot.bin boot.asm
+nasm -f bin -o loader.bin loader.asm
 # nasm
 # The assembler you are using (Netwide Assembler).
 
@@ -16,7 +17,9 @@ nasm -f bin -o boot.bin boot.asm
 # Your source code.
 
 dd if=boot.bin of=boot.img bs=512 count=1 conv=notrunc
-dd if=/dev/zero of=boot.img bs=512 seek=1 count=$((20*16*63-1)) conv=notrunc
+# Seek mean we skip first sector (512 bytes) to write loader.bin after boot.bin
+dd if=loader.bin of=boot.img bs=512 count=5 seek=1 conv=notrunc
+# dd if=/dev/zero of=boot.img bs=512 seek=1 count=$((20*16*63-1)) conv=notrunc
 
 # dd
 # A low-level copying tool.

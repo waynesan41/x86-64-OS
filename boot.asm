@@ -20,7 +20,25 @@ TestDiskExtension:
     cmp bx, 0xaa55 ; If BX != 0xaa55, jump to NotSupport
     jne NotSupport ; Jump if not equal
 
-PrintMessage:
+; Loading Boot Loader into 5
+LoadLoader:
+    mov si, ReadPacket
+    mov word[si],0x10 ; Number of sectors to read
+    mov word[si+2],5 ; Offset to load the sectors
+    mov word[si+4],0x7e00 ; Segment to load the sectors
+    mov word[si+6],0 ; Reserved, must be 0
+    mov dword[si+8],1 ; Starting LBA (Logical Block Address) sector number
+    mov dword[si+0xc],0 ; Drive number
+    mov dl, [DriveId]
+    mov ah, 0x42 ; BIOS Extended Read Sectors Function
+    int 0x13 ; Interrupt 0x13 - BIOS Disk Services
+    jc ReadError ; If carry flag is set, jump to LoadError
+    mov dl, [DriveId]
+    jmp 0x7e00 ; Jump to the loaded (->loader.asm) bootloader at segment 0x7e00, offset 0x0000
+
+
+ReadError:
+NotSupport:
     mov ah,0x13
     mov al,1
     mov bx,0xa
@@ -29,17 +47,16 @@ PrintMessage:
     mov cx,MessageLen 
     int 0x10
 
-
-NotSupport:
-    ; Continue with the rest of the bootloader code here
+; Use Infinite Loop to halt the CPU
 End:
     hlt    
     jmp End
      
 ; Define Variables 
 DriveId: db 0
-Message: db "Disk Extension is supported :D !!",
+Message: db "We Have an error in boot Process X_X !!",
 MessageLen: equ $-Message
+ReadPacket: times 16 db 0 ; Boot Sector Signature
 
 times (0x1be-($-$$)) db 0
 
