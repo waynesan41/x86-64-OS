@@ -8,6 +8,18 @@ start:
     mov ss,ax
     mov sp,0x7c00
 
+; Check Disk Extension Service (Morden computer have this service)
+; Need to load Kernal from Disk to Memory f
+TestDiskExtension:
+    mov [DriveId], dl 
+    ; The BIOS places the drive number (e.g., 0x80 for the first HDD, 0x00 for the first floppy) in DL.
+    mov ah,0x41
+    mov bx,0x55aa
+    int 0x13 ; Carry flag set if Service not supported
+    jc NotSupport ; If carry flag is set, jump to NotSupport
+    cmp bx, 0xaa55 ; If BX != 0xaa55, jump to NotSupport
+    jne NotSupport ; Jump if not equal
+
 PrintMessage:
     mov ah,0x13
     mov al,1
@@ -17,11 +29,16 @@ PrintMessage:
     mov cx,MessageLen 
     int 0x10
 
+
+NotSupport:
+    ; Continue with the rest of the bootloader code here
 End:
     hlt    
     jmp End
      
-Message:    db "Testing if my text printed. yeah It work!",0
+; Define Variables 
+DriveId: db 0
+Message: db "Disk Extension is supported :D !!",
 MessageLen: equ $-Message
 
 times (0x1be-($-$$)) db 0
