@@ -37,6 +37,29 @@ loadKernel:
     int 0x13 ; Interrupt 0x13 - BIOS Disk Services
     jc ReadError ; If carry flag is set, jump to Read error (Kernel load error)
 
+GetMemInfoStart:
+    ; Get Memory Information using E820
+    mov eax, 0xe820
+    mov edx, 0x534d4150 ; 'SMAP'
+    mov ecx, 20 ; Size of buffer
+    mov edi, 0x9000 ; Buffer to store memory map
+    xor ebx, ebx ; Continuation value
+    int 0x15
+    jc NotSupport ; If carry flag is set, jump to Read error 
+
+GetMemInfo:
+    add edi, 20 ; Move to next entry
+    mov eax, 0xe820
+    mov edx, 0x534d4150
+    mov ecx, 20 
+    int 0x15
+    jnc GetMemDone ; If no carry, continue getting memory map
+
+    test ebx, ebx
+    ; If Zero flag is not set
+    jnz GetMemInfo ; If EBX != 0, continue getting memory map 
+
+GetMemDone:    ; Print Success Message
     mov ah,0x13
     mov al,1
     mov bx,0xa
@@ -47,6 +70,7 @@ loadKernel:
 
 ; Use Infinite Loop to halt the CPU
 ReadError:
+NotSupport: ; Memory Info Error Part of Kernel Load Process
 NoLongMode:
 End:
     hlt
@@ -56,9 +80,10 @@ End:
 
 ; Define Variables
 DriveId: db 0
-Message: db "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
-             "Loader Starts :D !! ", 0x0D, 0x0A, \
-             "Long Mode Supported. O.O !!"
+Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
+            "Loader Starts :D !! ", 0x0D, 0x0A, \
+            "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
+            "Get Memory Info Done ^_^ !! "
 MessageLen: equ $-Message
 ; Define Read Packet Structure for BIOS Extended Read
 ReadPacket: times 16 db 0 ; 16 Byte
