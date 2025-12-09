@@ -22,6 +22,21 @@ start:
     test edx, (1 << 26) ; Bit 26 indicates 1GB page support
     jz NoLongMode ; If not supported, jump to NoLongMode
 
+; Load Kernel Similar to Load Loader
+; Where in the Memory we want to load the Kernel
+loadKernel: 
+    mov si, ReadPacket
+    mov word[si],0x10
+    mov word[si+2],100 ; About 100 sector = 51200 bytes = 50 KB (Enough for Kernel)
+    mov word[si+4],0  
+    mov word[si+6],0x1000 
+    mov dword[si+8],6 
+    mov dword[si+0xc],0
+    mov dl, [DriveId]
+    mov ah, 0x42 
+    int 0x13 ; Interrupt 0x13 - BIOS Disk Services
+    jc ReadError ; If carry flag is set, jump to Read error (Kernel load error)
+
     mov ah,0x13
     mov al,1
     mov bx,0xa
@@ -31,6 +46,7 @@ start:
     int 0x10
 
 ; Use Infinite Loop to halt the CPU
+ReadError:
 NoLongMode:
 End:
     hlt
@@ -40,5 +56,9 @@ End:
 
 ; Define Variables
 DriveId: db 0
-Message: db "Loader Starts :D !! Long Mode Supported. O.O !!"
+Message: db "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
+             "Loader Starts :D !! ", 0x0D, 0x0A, \
+             "Long Mode Supported. O.O !!"
 MessageLen: equ $-Message
+; Define Read Packet Structure for BIOS Extended Read
+ReadPacket: times 16 db 0 ; 16 Byte
