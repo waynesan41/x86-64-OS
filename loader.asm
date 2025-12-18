@@ -81,14 +81,40 @@ TestA20:
 SetA20LineDone:
     xor ax,ax
     mov es,ax
-    
-    mov ah,0x13
-    mov al,1
-    mov bx,0xa
-    xor dx,dx
-    mov bp,Message
-    mov cx,MessageLen 
+
+; To Set up Text mode (Video Mode)
+SetVideoMode:
+    ; Video Mode Printing Set up
+    mov ax, 3 ; 80 x 25 text mode
     int 0x10
+
+    mov si, Message
+    mov ax, 0xb800
+    mov es, ax
+    xor di, di
+    mov cx, MessageLen
+
+; Print ONE Character at a time
+PrintMessage:
+    mov al, [si]
+    mov [es:di], al
+    mov byte[es:di+1], 0xa ; Attribute byte (light gray on black)
+
+    add di, 2
+    add si, 1
+    loop PrintMessage ; Continue to processs printing each character
+
+
+    ; Screen printing is 80 x 25 Pixels
+    
+    ; BIOs Print Function
+    ; mov ah,0x13
+    ; mov al,1
+    ; mov bx,0xa
+    ; xor dx,dx
+    ; mov bp,Message
+    ; mov cx,MessageLen 
+    ; int 0x10
 
 ; Use Infinite Loop to halt the CPU
 ReadError:
@@ -107,6 +133,7 @@ Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
             "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
             "Get Memory Info Done ^_^ !! " , 0x0D, 0x0A, \
             "A20 Test s_s !! " ,  0x0D, 0x0A, \
+            "Video Mode : Text Mode is Set TVTVTVT " ,  0x0D, 0x0A, \
             "End of Loader ._. !!", 0x0D, 0x0A,
 MessageLen: equ $-Message
 ; Define Read Packet Structure for BIOS Extended Read
