@@ -88,21 +88,58 @@ SetVideoMode:
     mov ax, 3 ; 80 x 25 text mode
     int 0x10
 
-    mov si, Message
-    mov ax, 0xb800
+
+    cli ; clear interrupts before switching to protected mode
+    lgdt [Gdt32Ptr] ; Load the GDT
+    lidt [Idt32Ptr] ; IDT is 0 because we are not using interrupts in protected mode
+
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax ; Enable protected mode :D
+
+    jmp 8:PMEntry
+
+; Use Infinite Loop to halt the CPU
+ReadError:
+NotSupport: ; Memory Info Error Part of Kernel Load Process
+NoLongMode:
+End:
+    hlt
+    jmp End 
+
+[BITS 32]
+PMEntry:
+    mov ax, 0x10
+    mov ds, ax
     mov es, ax
-    xor di, di
-    mov cx, MessageLen
+    mov ss, ax
+    mov esp, 0x7c00 ; Set up stack
 
-; Print ONE Character at a time
-PrintMessage:
-    mov al, [si]
-    mov [es:di], al
-    mov byte[es:di+1], 0xa ; Attribute byte (light gray on black)
+    mov byte [0xb8000], 'P' ; P from Protected Mode
+    mov byte [0xb8001], 0x3 ; Light Green on Black Background
 
-    add di, 2
-    add si, 1
-    loop PrintMessage ; Continue to processs printing each character
+PEnd:
+    hlt
+    jmp PEnd
+
+    ; Print Loader Success Message]
+
+;     mov si, Message
+;     mov ax, 0xb800
+;     mov es, ax
+;     xor di, di
+;     mov cx, MessageLen
+
+; ; Print ONE Character at a time
+; PrintMessage:
+;     mov al, [si]
+;     mov [es:di], al
+;     ; mov byte[es:di+1], 0xa ; Attribute byte (light gray on black)
+;     mov byte[es:di+1], 0x3 ; Attribute byte (Light Red)
+
+;     add di, 2
+;     add si, 1
+;     loop PrintMessage ; Continue to processs printing each character
 
 
     ; Screen printing is 80 x 25 Pixels
@@ -116,13 +153,7 @@ PrintMessage:
     ; mov cx,MessageLen 
     ; int 0x10
 
-; Use Infinite Loop to halt the CPU
-ReadError:
-NotSupport: ; Memory Info Error Part of Kernel Load Process
-NoLongMode:
-End:
-    hlt
-    jmp End 
+
 
 
 
@@ -138,3 +169,29 @@ Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
 MessageLen: equ $-Message
 ; Define Read Packet Structure for BIOS Extended Read
 ReadPacket: times 16 db 0 ; 16 Byte
+
+Gdt32:
+    dq 0
+Code32:
+    dw 0xffff
+    dw 0
+    db 0
+    db 0x9A ; P value to 1
+    db 0xCF ; 4 GB
+    db 0
+Data32: ; Data Segment Descriptor
+    dw 0xffff
+    dw 0
+    db 0
+    db 0x92 ; For Read and Write
+    db 0xCF
+    db 0
+
+Gdt32Len: equ $-Gdt32
+
+Gdt32Ptr: dw Gdt32Len-1
+           dd Gdt32
+
+Idt32Ptr: dw 0
+           dd 0
+
