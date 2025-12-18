@@ -60,6 +60,28 @@ GetMemInfo:
     jnz GetMemInfo ; If EBX != 0, continue getting memory map 
 
 GetMemDone:    ; Print Success Message
+    ; mov ah,0x13
+    ; mov al,1
+    ; mov bx,0xa
+    ; xor dx,dx
+    ; mov bp,Message
+    ; mov cx,MessageLen 
+    ; int 0x10
+
+TestA20: 
+    mov ax, 0xffff
+    mov es, ax
+    mov word[ds:0x7c00], 0xa200 ; 0:0x7c00 = 0x16+0x7c00 = 0x7c00
+    cmp word[es:0x7c10], 0xa200
+    jne SetA20LineDone ; If not equal, A20 line is already enabled
+    mov word[0x7c00], 0xb200
+    cmp word[es:0x7c10], 0xb200
+    je End ; If equal, A20 line is not enabled
+
+SetA20LineDone:
+    xor ax,ax
+    mov es,ax
+    
     mov ah,0x13
     mov al,1
     mov bx,0xa
@@ -83,7 +105,9 @@ DriveId: db 0
 Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
             "Loader Starts :D !! ", 0x0D, 0x0A, \
             "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
-            "Get Memory Info Done ^_^ !! "
+            "Get Memory Info Done ^_^ !! " , 0x0D, 0x0A, \
+            "A20 Test s_s !! " ,  0x0D, 0x0A, \
+            "End of Loader ._. !!", 0x0D, 0x0A,
 MessageLen: equ $-Message
 ; Define Read Packet Structure for BIOS Extended Read
 ReadPacket: times 16 db 0 ; 16 Byte
