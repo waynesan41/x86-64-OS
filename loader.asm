@@ -115,58 +115,64 @@ PMEntry:
     mov ss, ax
     mov esp, 0x7c00 ; Set up stack
 
-    mov byte [0xb8000], 'P' ; P from Protected Mode
-    mov byte [0xb8001], 0x3 ; Light Green on Black Background
+    ; mov byte [0xb8000], 'P' ; P from Protected Mode
+    ; mov byte [0xb8001], 0x3 ; Light Green on Black Background
+
+   cld
+    mov edi,0x70000
+    xor eax,eax
+    mov ecx,0x10000/4
+    rep stosd
+    
+    mov dword[0x70000],0x71007
+    mov dword[0x71000],10000111b
+
+    lgdt [Gdt64Ptr]
+
+    mov eax,cr4
+    or eax,(1<<5)
+    mov cr4,eax
+
+    mov eax,0x70000
+    mov cr3,eax
+
+    mov ecx,0xc0000080
+    rdmsr
+    or eax,(1<<8)
+    wrmsr
+
+    mov eax,cr0 ; Long Mode is activated Now
+    or eax,(1<<31)
+    mov cr0,eax
+
+    jmp 8:LMEntry
+
 
 PEnd:
     hlt
     jmp PEnd
 
-    ; Print Loader Success Message]
+[BITS 64]
+LMEntry:
+    mov rsp,0x7c00
 
-;     mov si, Message
-;     mov ax, 0xb800
-;     mov es, ax
-;     xor di, di
-;     mov cx, MessageLen
+    mov byte[0xb8000],'L'  ; L from Long Mode
+    mov byte[0xb8001],0xa
 
-; ; Print ONE Character at a time
-; PrintMessage:
-;     mov al, [si]
-;     mov [es:di], al
-;     ; mov byte[es:di+1], 0xa ; Attribute byte (light gray on black)
-;     mov byte[es:di+1], 0x3 ; Attribute byte (Light Red)
-
-;     add di, 2
-;     add si, 1
-;     loop PrintMessage ; Continue to processs printing each character
-
-
-    ; Screen printing is 80 x 25 Pixels
-    
-    ; BIOs Print Function
-    ; mov ah,0x13
-    ; mov al,1
-    ; mov bx,0xa
-    ; xor dx,dx
-    ; mov bp,Message
-    ; mov cx,MessageLen 
-    ; int 0x10
-
-
-
-
+LEnd:
+    hlt
+    jmp LEnd
 
 ; Define Variables
 DriveId: db 0
-Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
-            "Loader Starts :D !! ", 0x0D, 0x0A, \
-            "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
-            "Get Memory Info Done ^_^ !! " , 0x0D, 0x0A, \
-            "A20 Test s_s !! " ,  0x0D, 0x0A, \
-            "Video Mode : Text Mode is Set TVTVTVT " ,  0x0D, 0x0A, \
-            "End of Loader ._. !!", 0x0D, 0x0A,
-MessageLen: equ $-Message
+; Message: db "Long Mode Supported. O.O !!",  0x0D, 0x0A, \
+;             "Loader Starts :D !! ", 0x0D, 0x0A, \
+;             "Kernel is Loaded :D !! ", 0x0D, 0x0A, \
+;             "Get Memory Info Done ^_^ !! " , 0x0D, 0x0A, \
+;             "A20 Test s_s !! " ,  0x0D, 0x0A, \
+;             "Video Mode : Text Mode is Set TVTVTVT " ,  0x0D, 0x0A, \
+;             "End of Loader ._. !!", 0x0D, 0x0A,
+; MessageLen: equ $-Message
 ; Define Read Packet Structure for BIOS Extended Read
 ReadPacket: times 16 db 0 ; 16 Byte
 
@@ -194,4 +200,15 @@ Gdt32Ptr: dw Gdt32Len-1
 
 Idt32Ptr: dw 0
            dd 0
+
+Gdt64: 
+    dq 0
+    dq 0x0020980000000000
+
+Gdt64Len: equ $-Gdt64
+
+Gdt64Ptr: dw Gdt64Len-1
+          dd Gdt64
+
+
 
