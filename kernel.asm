@@ -2,60 +2,37 @@
 [ORG 0x200000]
 
 start: 
-    mov rdi,Idt
-    
-    mov rax,Handler0
-    mov [rdi],ax
-    shr rax,16
-    mov [rdi+6],ax
-    shr rax,16
-    mov [rdi+8],eax
+   
+    mov rdi, Idt
+    mov rax, Handler0
 
-    mov rax,Timer
-    add rdi,32*16
-    mov [rdi],ax
-    shr rax,16
-    mov [rdi+6],ax
-    shr rax,16
-    mov [rdi+8],eax
+    mov [rdi], ax
+    shr rax, 16
+    mov [rdi+6], ax
 
-    lgdt [Gdt64Ptr]
-    lidt [IdtPtr]
+    shr rax, 16
+    mov [rdi+8], eax
+
+    mov rax, Timer
+    add rdi, 32*16 ; Move to the next IDT entry (16 bytes each) 
+    mov [rdi], ax
+    shr rax, 16
+    mov [rdi+6], ax
+    shr rax, 16
+    mov [rdi+8], eax
+
+
+
+    lgdt [Gdt64Ptr] ; Load the GDT
+    lidt [IdtPtr] ; Load the IDT
+
+
 
     push 8
     push KernelEntry
     db 0x48
+    ; Far Return
     retf
-    ; mov rdi, Idt
-    ; mov rax, Handler0
-
-    ; mov [rdi], ax
-    ; shr rax, 16
-    ; mov [rdi+6], ax
-
-    ; shr rax, 16
-    ; mov [rdi+8], eax
-
-    ; mov rax, Timer
-    ; add rdi, 32*16 ; Move to the next IDT entry (16 bytes each) 
-    ; mov [rdi], ax
-    ; shr rax, 16
-    ; mov [rdi+6], ax
-    ; shr rax, 16
-    ; mov [rdi+8], eax
-
-
-
-    ; lgdt [Gdt64Ptr] ; Load the GDT
-    ; lidt [IdtPtr] ; Load the IDT
-
-
-
-    ; push 8
-    ; push KernelEntry
-    ; db 0x48
-    ; ; Far Return
-    ; retf
 
 
 
@@ -118,11 +95,32 @@ InitPIC:
     mov al, 11111111b
     out 0xa1, al         ; Mask all IRQs on Slave PIC
 
-    sti                   ; Set interrupts Flag
+    ; sti                   ; Set interrupts Flag
+
+    push 0x18|3
+    push 0x7c00
+    push 0x2
+    push 0x10|3
+    push UserEntry
+    iretq
+
 
 End:
     hlt
     jmp End
+
+UserEntry:
+    mov ax,cs
+    and al,11b
+    cmp al,3
+    jne UEnd
+
+    mov byte[0xb8010],'U'
+    mov byte[0xb8011],0xE
+
+UEnd:
+    jmp UEnd
+
 
 Handler0: 
     push rax
@@ -206,6 +204,8 @@ Timer:
 Gdt64:
     dq 0
     dq 0x0020980000000000
+    dq 0x0020f80000000000 ; f for ring 3
+    dq 0x0020f20000000000 ; Data Segment Ring 3 writiable
 
 Gdt64Len: equ $-Gdt64
 
