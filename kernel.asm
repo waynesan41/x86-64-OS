@@ -9,7 +9,6 @@ start:
     mov [rdi], ax
     shr rax, 16
     mov [rdi+6], ax
-
     shr rax, 16
     mov [rdi+8], eax
 
@@ -21,11 +20,22 @@ start:
     shr rax, 16
     mov [rdi+8], eax
 
-
-
     lgdt [Gdt64Ptr] ; Load the GDT
     lidt [IdtPtr] ; Load the IDT
 
+SetTss:
+    mov rax,Tss
+    mov [TssDesc+2],ax
+    shr rax,16
+    mov [TssDesc+4],al
+    shr rax,8
+    mov [TssDesc+7],al
+    shr rax,8
+    mov [TssDesc+8],eax
+
+    ; Load the TSS
+    mov ax, 0x20
+    ltr ax
 
 
     push 8
@@ -33,7 +43,6 @@ start:
     db 0x48
     ; Far Return
     retf
-
 
 
 KernelEntry:
@@ -99,11 +108,10 @@ InitPIC:
 
     push 0x18|3
     push 0x7c00
-    push 0x2
+    push 0x202
     push 0x10|3
     push UserEntry
     iretq
-
 
 End:
     hlt
@@ -206,6 +214,16 @@ Gdt64:
     dq 0x0020980000000000
     dq 0x0020f80000000000 ; f for ring 3
     dq 0x0020f20000000000 ; Data Segment Ring 3 writiable
+; Tss Descriptor
+TssDesc:
+    dw TssLen-1
+    dw 0
+    db 0
+    db 0x89 ; Present, DPL=0, Type=9 (Available 64-bit TSS)
+    db 0
+    db 0
+    dq 0
+    
 
 Gdt64Len: equ $-Gdt64
 
@@ -230,3 +248,13 @@ IdtLen: equ $-Idt
 
 IdtPtr: dw IdtLen-1
         dq Idt
+
+; Tasks state Segment
+Tss:
+    dd 0
+    dq 0x150000
+    times 88 db 0
+    dd TssLen
+
+TssLen: equ $-Tss
+
