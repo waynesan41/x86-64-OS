@@ -2,28 +2,60 @@
 [ORG 0x200000]
 
 start: 
-    mov rdi, Idt
-    mov rax, handler0
+    mov rdi,Idt
+    
+    mov rax,Handler0
+    mov [rdi],ax
+    shr rax,16
+    mov [rdi+6],ax
+    shr rax,16
+    mov [rdi+8],eax
 
-    mov [rdi], ax
-    shr rax, 16
-    mov [rdi+6], ax
+    mov rax,Timer
+    add rdi,32*16
+    mov [rdi],ax
+    shr rax,16
+    mov [rdi+6],ax
+    shr rax,16
+    mov [rdi+8],eax
 
-    shr rax, 16
-    mov [rdi+8], eax
-
-
-
-    lgdt [Gdt64Ptr] ; Load the GDT
-    lidt [IdtPtr] ; Load the IDT
-
-
+    lgdt [Gdt64Ptr]
+    lidt [IdtPtr]
 
     push 8
     push KernelEntry
     db 0x48
-    ; Far Return
     retf
+    ; mov rdi, Idt
+    ; mov rax, Handler0
+
+    ; mov [rdi], ax
+    ; shr rax, 16
+    ; mov [rdi+6], ax
+
+    ; shr rax, 16
+    ; mov [rdi+8], eax
+
+    ; mov rax, Timer
+    ; add rdi, 32*16 ; Move to the next IDT entry (16 bytes each) 
+    ; mov [rdi], ax
+    ; shr rax, 16
+    ; mov [rdi+6], ax
+    ; shr rax, 16
+    ; mov [rdi+8], eax
+
+
+
+    ; lgdt [Gdt64Ptr] ; Load the GDT
+    ; lidt [IdtPtr] ; Load the IDT
+
+
+
+    ; push 8
+    ; push KernelEntry
+    ; db 0x48
+    ; ; Far Return
+    ; retf
 
 
 
@@ -50,19 +82,124 @@ KernelEntry:
     mov byte [0xb800C], '-'
     mov byte [0xb800D], 0x07
 
-    xor rbx, rbx
-    div rbx
+    ; xor rbx, rbx
+    ; div rbx
 
+InitPIT:
+    mov al, (1<<2) | (3<<4)
+    out 0x43, al          ; Command port
+    
+    mov ax, 11931        ; 1.2 MHz / 1200 Hz 1.2 millions per seconds 11931
+    out 0x40, al         ; Low byte
+    mov al, ah
+    out 0x40, al         ; High byte
+    
+InitPIC:
+    mov al, 0x11
+    out 0x20, al         ; Start initialization of master PIC
+    out 0xa0, al         ; Start initialization of slave PIC
+    
+    mov al, 32
+    out 0x21, al         ; Master PIC vector offset
+    mov al, 40
+    out 0xa1, al         ; Slave PIC vector offset
+
+    mov al, 4
+    out 0x21, al         ; Tell Master PIC that there is a slave PIC at IRQ2
+    mov al, 2
+    out 0xa1, al         ; Tell Slave PIC its cascade identity
+
+    mov al, 1
+    out 0x21, al         ; Set Master PIC to 8086 mode
+    out 0xa1, al         ; Set Slave PIC to 8086 mode
+
+    mov al, 11111110b
+    out 0x21, al         ; Mask all IRQs on Master PIC except IRQ0
+    mov al, 11111111b
+    out 0xa1, al         ; Mask all IRQs on Slave PIC
+
+    sti                   ; Set interrupts Flag
 
 End:
     hlt
     jmp End
 
-handler0: 
+Handler0: 
+    push rax
+    push rbx  
+    push rcx
+    push rdx  	  
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
     mov byte [0xb800E], 'D'  ; Indicate interrupt handler was called
-    mov byte [0xb800F], 0x07
+    mov byte [0xb800F], 0xc
 
     jmp End
+
+    pop	r15
+    pop	r14
+    pop	r13
+    pop	r12
+    pop	r11
+    pop	r10
+    pop	r9
+    pop	r8
+    pop	rbp
+    pop	rdi
+    pop	rsi  
+    pop	rdx
+    pop	rcx
+    pop	rbx
+    pop	rax
+
+    iretq
+
+Timer:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov byte[0xb8020],'T' ;Indicate timer interrupt handler was called
+    mov byte[0xb8021],0xe
+    jmp End
+
+    pop	r15
+    pop	r14
+    pop	r13
+    pop	r12
+    pop	r11
+    pop	r10
+    pop	r9
+    pop	r8
+    pop	rbp
+    pop	rdi
+    pop	rsi  
+    pop	rdx
+    pop	rcx
+    pop	rbx
+    pop	rax
 
     iretq
 
@@ -72,22 +209,24 @@ Gdt64:
 
 Gdt64Len: equ $-Gdt64
 
+
 Gdt64Ptr: dw Gdt64Len-1
           dq Gdt64
 
-Idt: 
+Idt:
 ; Repeat 256 times
     %rep 256
-    dw 0
-    dw 0x8 
-    db 0
-    db 0x8e ; In binary 1 00 01110
-    dw 0
-    dd 0
-    dd 0
+        dw 0
+        dw 0x8
+        db 0
+        db 0x8e ; In binary 1 00 01110
+        dw 0
+        dd 0
+        dd 0
     %endrep
+
 
 IdtLen: equ $-Idt
 
 IdtPtr: dw IdtLen-1
-          dq Idt
+        dq Idt
