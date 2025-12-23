@@ -118,16 +118,19 @@ End:
     jmp End
 
 UserEntry:
-    mov ax,cs
-    and al,11b
-    cmp al,3
-    jne UEnd
+    ; mov ax,cs
+    ; and al,11b
+    ; cmp al,3
+    ; jne UEnd
 
-    mov byte[0xb8010],'U'
-    mov byte[0xb8011],0xE
+
+
+    inc byte[0xb8010]
+    mov byte[0xb8011],0xF
 
 UEnd:
-    jmp UEnd
+    jmp UserEntry
+    ; jmp UEnd
 
 
 Handler0: 
@@ -187,9 +190,15 @@ Timer:
     push r14
     push r15
 
-    mov byte[0xb8020],'T' ;Indicate timer interrupt handler was called
+
+    inc byte[0xb8020] 
+    ; mov byte[0xb8020],'T' ;Indicate timer interrupt handler was called
     mov byte[0xb8021],0xe
-    jmp End
+    ; jmp End
+
+    mov al, 0x20
+    out 0x20, al ; Write it to the command register of the master PIC.
+
 
     pop	r15
     pop	r14
