@@ -3,22 +3,29 @@
 
 start: 
    
-    mov rdi, Idt
-    mov rax, Handler0
+    mov rdi,Idt
+    mov rax,Handler0
+    call SetHandler
 
-    mov [rdi], ax
-    shr rax, 16
-    mov [rdi+6], ax
-    shr rax, 16
-    mov [rdi+8], eax
+    ; mov [rdi], ax
+    ; shr rax, 16
+    ; mov [rdi+6], ax
+    ; shr rax, 16
+    ; mov [rdi+8], eax
 
-    mov rax, Timer
-    add rdi, 32*16 ; Move to the next IDT entry (16 bytes each) 
-    mov [rdi], ax
-    shr rax, 16
-    mov [rdi+6], ax
-    shr rax, 16
-    mov [rdi+8], eax
+    mov rax,Timer
+    mov rdi,Idt+32*16 ; Move to the next IDT entry (16 bytes each) 
+    call SetHandler
+
+    mov rdi,Idt+32*16+7*16
+    mov rax,SIRQ
+    call SetHandler
+
+    ; mov [rdi], ax
+    ; shr rax, 16
+    ; mov [rdi+6], ax
+    ; shr rax, 16
+    ; mov [rdi+8], eax
 
     lgdt [Gdt64Ptr] ; Load the GDT
     lidt [IdtPtr] ; Load the IDT
@@ -116,6 +123,14 @@ InitPIC:
 End:
     hlt
     jmp End
+
+SetHandler:
+    mov [rdi],ax
+    shr rax,16
+    mov [rdi+6],ax
+    shr rax,16
+    mov [rdi+8],eax
+    ret
 
 UserEntry:
     ; mov ax,cs
@@ -216,6 +231,51 @@ Timer:
     pop	rbx
     pop	rax
 
+    iretq
+
+SIRQ:
+    push rax
+    push rbx  
+    push rcx
+    push rdx  	  
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov al,11
+    out 0x20,al ; Notify Master PIC
+    in al,0x20
+
+    test al,(1<<7)
+    jz .end ; Local label
+
+    mov al,0x20
+    out 0x20,al
+
+.end:
+    pop	r15
+    pop	r14
+    pop	r13
+    pop	r12
+    pop	r11
+    pop	r10
+    pop	r9
+    pop	r8
+    pop	rbp
+    pop	rdi
+    pop	rsi  
+    pop	rdx
+    pop	rcx
+    pop	rbx
+    pop	rax
     iretq
 
 Gdt64:
