@@ -3,7 +3,20 @@
 
 nasm -f bin -o boot.bin boot.asm
 nasm -f bin -o loader.bin loader.asm
-nasm -f bin -o kernel.bin kernel.asm
+# nasm -f bin -o kernel.bin kernel.asm
+
+# Object file for kernel (ELF64 format)
+# elf (Executable and Linkable Format) is a common standard file format for executables, object code, shared libraries, and core dumps.
+nasm -f elf64 -o kernel.o kernel.asm
+
+# Compile C code with GCC
+gcc -std=c99 -mcmodel=large -ffreestanding -fno-stack-protector -mno-red-zone -c main.c 
+
+# Link kernel object files into a single binary
+ld -nostdlib -T link.lds -o kernel kernel.o main.o
+# Convert the linked kernel ELF file to a flat binary format
+objcopy -O binary kernel kernel.bin 
+
 # nasm
 # The assembler you are using (Netwide Assembler).
 

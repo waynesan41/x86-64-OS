@@ -1,34 +1,41 @@
-[BITS 64]
-[ORG 0x200000]
+section .data
+
+Gdt64:
+    dq 0
+    dq 0x0020980000000000
+    dq 0x0020f80000000000 ; f for ring 3
+    dq 0x0020f20000000000 ; Data Segment Ring 3 writiable
+
+; Tss Descriptor
+TssDesc:
+    dw TssLen-1
+    dw 0
+    db 0
+    db 0x89 ; Present, DPL=0, Type=9 (Available 64-bit TSS)
+    db 0
+    db 0
+    dq 0
+    
+Gdt64Len: equ $-Gdt64
+
+Gdt64Ptr: dw Gdt64Len-1
+          dq Gdt64
+
+; Tasks state Segment
+Tss:
+    dd 0
+    dq 0x150000
+    times 88 db 0
+    dd TssLen
+
+TssLen: equ $-Tss
+
+section .text
+extern KMain
+global start ; Linker will know the start is Entry of the Kernel
 
 start: 
-   
-    mov rdi,Idt
-    mov rax,Handler0
-    call SetHandler
-
-    ; mov [rdi], ax
-    ; shr rax, 16
-    ; mov [rdi+6], ax
-    ; shr rax, 16
-    ; mov [rdi+8], eax
-
-    mov rax,Timer
-    mov rdi,Idt+32*16 ; Move to the next IDT entry (16 bytes each) 
-    call SetHandler
-
-    mov rdi,Idt+32*16+7*16
-    mov rax,SIRQ
-    call SetHandler
-
-    ; mov [rdi], ax
-    ; shr rax, 16
-    ; mov [rdi+6], ax
-    ; shr rax, 16
-    ; mov [rdi+8], eax
-
     lgdt [Gdt64Ptr] ; Load the GDT
-    lidt [IdtPtr] ; Load the IDT
 
 SetTss:
     mov rax,Tss
@@ -44,39 +51,6 @@ SetTss:
     mov ax, 0x20
     ltr ax
 
-
-    push 8
-    push KernelEntry
-    db 0x48
-    ; Far Return
-    retf
-
-
-KernelEntry:
-   ; Print: K-GDT!!
-    mov byte [0xb8000], 'K' ; Write 'K' to the first character position on the screen
-    mov byte [0xb8001], 0x1F  ; Set the color of the first character to white (0x1f)
-
-    mov byte [0xb8002], '-'
-    mov byte [0xb8003], 0x07     ; light gray on black
-
-    mov byte [0xb8004], 'G'
-    mov byte [0xb8005], 0x07
-
-    mov byte [0xb8006], 'D'
-    mov byte [0xb8007], 0x07
-
-    mov byte [0xb8008], 'T'
-    mov byte [0xb8009], 0x07
-
-    mov byte [0xb800A], '!'
-    mov byte [0xb800B], 0x07
-
-    mov byte [0xb800C], '-'
-    mov byte [0xb800D], 0x07
-
-    ; xor rbx, rbx
-    ; div rbx
 
 InitPIT:
     mov al, (1<<2) | (3<<4)
@@ -111,219 +85,22 @@ InitPIC:
     mov al, 11111111b
     out 0xa1, al         ; Mask all IRQs on Slave PIC
 
-    ; sti                   ; Set interrupts Flag
+    push 8
+    push KernelEntry
+    db 0x48
+    retf
 
-    push 0x18|3
-    push 0x7c00
-    push 0x202
-    push 0x10|3
-    push UserEntry
-    iretq
+
+KernelEntry:
+    ; Set up stack pointer
+    mov rsp, 0x200000
+    call KMain ;Jump to the Main Kernel Entry in C
+
+
 
 End:
     hlt
     jmp End
 
-SetHandler:
-    mov [rdi],ax
-    shr rax,16
-    mov [rdi+6],ax
-    shr rax,16
-    mov [rdi+8],eax
-    ret
 
-UserEntry:
-    ; mov ax,cs
-    ; and al,11b
-    ; cmp al,3
-    ; jne UEnd
-
-
-
-    inc byte[0xb8010]
-    mov byte[0xb8011],0xF
-
-UEnd:
-    jmp UserEntry
-    ; jmp UEnd
-
-
-Handler0: 
-    push rax
-    push rbx  
-    push rcx
-    push rdx  	  
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    mov byte [0xb800E], 'D'  ; Indicate interrupt handler was called
-    mov byte [0xb800F], 0xc
-
-    jmp End
-
-    pop	r15
-    pop	r14
-    pop	r13
-    pop	r12
-    pop	r11
-    pop	r10
-    pop	r9
-    pop	r8
-    pop	rbp
-    pop	rdi
-    pop	rsi  
-    pop	rdx
-    pop	rcx
-    pop	rbx
-    pop	rax
-
-    iretq
-
-Timer:
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-
-    inc byte[0xb8020] 
-    ; mov byte[0xb8020],'T' ;Indicate timer interrupt handler was called
-    mov byte[0xb8021],0xe
-    ; jmp End
-
-    mov al, 0x20
-    out 0x20, al ; Write it to the command register of the master PIC.
-
-
-    pop	r15
-    pop	r14
-    pop	r13
-    pop	r12
-    pop	r11
-    pop	r10
-    pop	r9
-    pop	r8
-    pop	rbp
-    pop	rdi
-    pop	rsi  
-    pop	rdx
-    pop	rcx
-    pop	rbx
-    pop	rax
-
-    iretq
-
-SIRQ:
-    push rax
-    push rbx  
-    push rcx
-    push rdx  	  
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    mov al,11
-    out 0x20,al ; Notify Master PIC
-    in al,0x20
-
-    test al,(1<<7)
-    jz .end ; Local label
-
-    mov al,0x20
-    out 0x20,al
-
-.end:
-    pop	r15
-    pop	r14
-    pop	r13
-    pop	r12
-    pop	r11
-    pop	r10
-    pop	r9
-    pop	r8
-    pop	rbp
-    pop	rdi
-    pop	rsi  
-    pop	rdx
-    pop	rcx
-    pop	rbx
-    pop	rax
-    iretq
-
-Gdt64:
-    dq 0
-    dq 0x0020980000000000
-    dq 0x0020f80000000000 ; f for ring 3
-    dq 0x0020f20000000000 ; Data Segment Ring 3 writiable
-; Tss Descriptor
-TssDesc:
-    dw TssLen-1
-    dw 0
-    db 0
-    db 0x89 ; Present, DPL=0, Type=9 (Available 64-bit TSS)
-    db 0
-    db 0
-    dq 0
-    
-
-Gdt64Len: equ $-Gdt64
-
-
-Gdt64Ptr: dw Gdt64Len-1
-          dq Gdt64
-
-Idt:
-; Repeat 256 times
-    %rep 256
-        dw 0
-        dw 0x8
-        db 0
-        db 0x8e ; In binary 1 00 01110
-        dw 0
-        dd 0
-        dd 0
-    %endrep
-
-
-IdtLen: equ $-Idt
-
-IdtPtr: dw IdtLen-1
-        dq Idt
-
-; Tasks state Segment
-Tss:
-    dd 0
-    dq 0x150000
-    times 88 db 0
-    dd TssLen
-
-TssLen: equ $-Tss
 
