@@ -91,12 +91,13 @@ InitPIC:
     retf
 
 
-KernelEntry:
-    ; Set up stack pointer
-    mov rsp, 0x200000
-    call KMain ;Jump to the Main Kernel Entry in C
-
-
+KernelEntry: 
+    xor ax,ax
+    mov ss,ax
+    
+    mov rsp,0x200000
+    call KMain
+    sti
 
 End:
     hlt
